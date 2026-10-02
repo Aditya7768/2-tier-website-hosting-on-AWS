@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Forex Risk Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Styling for the client UI -->
+    <style>
+        body {
+            background-color: #222629;
+            font-family: system-ui;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #FFFFFF;
+            margin: 0 0 20px 0;
+        }
+        .row {
+            margin-bottom: 14px;
+        }
+        label {
+            color: #86C232;
+            font-size: 20px;
+            display: inline-block;
+            width: 240px;
+        }
+        input, select {
+            color: #222629;
+            font-family: system-ui;
+            font-size: 20px;
+            width: 160px;
+        }
+        button {
+            background-color: #86C232;
+            border: 1px solid #86C232;
+            color: #FFFFFF;
+            font-family: system-ui;
+            font-size: 20px;
+            font-weight: bold;
+            width: 240px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #result {
+            color: #FFFFFF;
+            font-size: 22px;
+            margin-top: 24px;
+            line-height: 1.6;
+        }
+        #result .big {
+            color: #86C232;
+            font-size: 34px;
+            font-weight: bold;
+        }
+        #result .error {
+            color: #FF6B6B;
+        }
+    </style>
+    <script>
+        // the API Gateway endpoint that triggers our Lambda function
+        var API_URL = "https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/prod";
+
+        // callAPI function that sends the trade details to the API and shows the result
+        var callAPI = () => {
+            // read the values from the form fields
+            var details = {
+                balance: parseFloat(document.getElementById("balance").value),
+                risk_pct: parseFloat(document.getElementById("riskPct").value),
+                pair: document.getElementById("pair").value,
+                stop_pips: parseFloat(document.getElementById("stopPips").value),
+                price: parseFloat(document.getElementById("price").value)
+            };
+
+            // instantiate a headers object and add the content type
+            var myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+
+            // create a JSON object with parameters for the API call
+            var requestOptions = {
+                method: "POST",
+                headers: myHeaders,
+                body: JSON.stringify(details),
+                redirect: "follow"
+            };
+
+            var out = document.getElementById("result");
+            out.innerHTML = "Calculating...";
+
+            // make the API call and use promises to get the response
+            fetch(API_URL, requestOptions)
+            .then(response => response.json())
+            .then(data => {
+                // with Lambda proxy integration the data arrives directly;
+                // if it is wrapped in a "body" string, unwrap it first
+                if (typeof data.body === "string") {
+                    data = JSON.parse(data.body);
+                }
+                out.innerHTML =
+                    "Position size:<br>" +
+                    "<span class='big'>" + data.lots + " lots</span><br>" +
+                    "Units: " + data.units + "<br>" +
+                    "Amount at risk: $" + data.risk_amount + "<br>" +
+                    "Pip value per lot: $" + data.pip_value_per_lot;
+            })
+            .catch(error => {
+                out.innerHTML = "<span class='error'>Something went wrong. " +
+                    "Check your values and that CORS is enabled and the API is deployed.</span>";
+                console.log("error", error);
+            });
+        };
+    </script>
+</head>
+<body>
+    <h1>FOREX RISK CALCULATOR</h1>
+    <form>
+        <div class="row">
+            <label>Account balance (USD):</label>
+            <input type="number" id="balance" value="10000">
+        </div>
+        <div class="row">
+            <label>Risk per trade (%):</label>
+            <input type="number" id="riskPct" value="1" step="any">
+        </div>
+        <div class="row">
+            <label>Currency pair:</label>
+            <select id="pair">
+                <option>EURUSD</option>
+                <option>GBPUSD</option>
+                <option>AUDUSD</option>
+                <option>NZDUSD</option>
+                <option>USDJPY</option>
+                <option>USDCHF</option>
+                <option>USDCAD</option>
+            </select>
+        </div>
+        <div class="row">
+            <label>Stop loss (pips):</label>
+            <input type="number" id="stopPips" value="25" step="any">
+        </div>
+        <div class="row">
+            <label>Current price:</label>
+            <input type="number" id="price" value="1.0850" step="any">
+        </div>
+        <!-- set button onClick method to call the function we defined -->
+        <button type="button" onclick="callAPI()">CALCULATE</button>
+    </form>
+    <div id="result"></div>
+</body>
+</html>
